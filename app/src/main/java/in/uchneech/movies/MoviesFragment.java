@@ -2,7 +2,6 @@ package in.uchneech.movies;
 
 import android.content.Context;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
@@ -20,13 +19,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Headers;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * A fragment representing a list of Items.
@@ -36,12 +38,12 @@ import java.util.List;
  */
 public class MoviesFragment extends Fragment {
     private static final String TAG = MoviesFragment.class.getSimpleName();
-    private static final String INIT_SORT = "popularity.desc";
-
+    private static String INIT_SORT = "popularity.desc";
+    private static int page = 1;
+    private final OkHttpClient client = new OkHttpClient();
     private List<FeedItem> feedItemList;
 
-    private RecyclerView mRecyclerView;
-
+    MyMovieRecyclerViewAdapter adapter;
 
     private static final String ARG_COLUMN_COUNT = "column-count";
     private int mColumnCount = 2;
@@ -77,20 +79,125 @@ public class MoviesFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_movie_list, container, false);
-        new AsyncHttpTask().execute(callAdapterUpdater(INIT_SORT));
 
+        LinearLayoutManager linearLayoutManager; GridLayoutManager gridLayoutManager = null;
         // Set the adapter
         if (view instanceof RecyclerView) {
             Context context = view.getContext();
-            mRecyclerView = (RecyclerView) view;
+            RecyclerView mRecyclerView = (RecyclerView) view;
             if (mColumnCount <= 1) {
-                mRecyclerView.setLayoutManager(new LinearLayoutManager(context));
+                linearLayoutManager = new LinearLayoutManager(context);
+                mRecyclerView.setLayoutManager(linearLayoutManager);
             } else {
-                mRecyclerView.setLayoutManager(new GridLayoutManager(context, mColumnCount));
+                gridLayoutManager = new GridLayoutManager(context, mColumnCount);
+                mRecyclerView.setLayoutManager(gridLayoutManager);
             }
+            // Add the scroll listener
+            mRecyclerView.addOnScrollListener(new EndlessRecyclerViewScrollListener(gridLayoutManager) {
+                @Override
+                public void onLoadMore(int page, int totalItemsCount) {
+                    // Triggered only when new data needs to be appended to the list
+                    // Add whatever code is needed to append new items to the bottom of the list
+                    run(callAdapterUpdater(INIT_SORT, page));
+                }
+            });
+
+            adapter = new MyMovieRecyclerViewAdapter(MoviesFragment.this.getContext(), feedItemList, mListener);
+            mRecyclerView.setAdapter(adapter);
+            if (savedInstanceState != null)
+            {
+                run(callAdapterUpdater(savedInstanceState.getString("INIT_SORT"), savedInstanceState.getInt("page")));
+            }
+            else
+            {
+                run(callAdapterUpdater(INIT_SORT, page));
+            }
+
         }
         return view;
     }
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        // Save the user's current game state
+        savedInstanceState.putString("INIT_SORT", INIT_SORT);
+        savedInstanceState.putInt("page", page);
+
+        // Always call the superclass so it can save the view hierarchy state
+        super.onSaveInstanceState(savedInstanceState);
+    }
+    private String callAdapterUpdater(String initSort, int page) {
+
+        //        Log.i (TAG, url);
+        String url = Uri.parse("http://api.themoviedb.org/3/discover/movie").buildUpon()
+                .appendQueryParameter("sort_by", initSort)
+                .appendQueryParameter("page", String.valueOf(page))
+                .appendQueryParameter("api_key", BuildConfig.TMDB).build().toString(); Log.i(TAG, url); return url;
+    }
+
+    public void run(String url)  {
+        int postsLength = 0;
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+
+                Headers responseHeaders = response.headers();
+                for (int i = 0, size = responseHeaders.size(); i < size; i++) {
+                    System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
+                }
+
+                //System.out.println(response.body().string());
+                String myResponse =  response.body().string();
+                //Do something with response
+                //...
+
+                MoviesFragment.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        //Handle UI here
+
+                    }
+                });
+            }
+        });
+    }
+
+    private int parseResult(String result) {
+        JSONArray posts = null;
+        try {
+            JSONObject response = new JSONObject(result);
+            posts = response.optJSONArray("results");
+            //Log.i(TAG, posts.toString());
+            /*Initialize array if null*/
+            /*if (null == feedItemList) {
+
+            }*/
+            feedItemList = new ArrayList<>();
+            for (int i = 0; i < posts.length(); i++) {
+                JSONObject post = posts.optJSONObject(i);
+
+                FeedItem item = new FeedItem();
+                item.setId(post.optString("id"));
+                item.setThumbnail(post.optString("poster_path"));
+                feedItemList.add(item);
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } finally {
+            return posts != null? posts.length(): 0;
+        }
+    }
+
     @Override
     public void onCreateOptionsMenu (Menu menu, MenuInflater inflater)
     {
@@ -102,21 +209,15 @@ public class MoviesFragment extends Fragment {
     {
         switch (item.getItemId())
         {
-            case R.id.popularity_asc : new AsyncHttpTask().execute( callAdapterUpdater("popularity.asc")); return true;
-            case R.id.popularity_desc : new AsyncHttpTask().execute( callAdapterUpdater("popularity.desc")); return true;
-            case R.id.vote_average_asc : new AsyncHttpTask().execute( callAdapterUpdater("vote_average.asc")); return true;
-            case R.id.vote_average_desc : new AsyncHttpTask().execute( callAdapterUpdater("vote_average.desc")); return true;
+            case R.id.popularity_asc :INIT_SORT= "popularity.asc"; run(callAdapterUpdater("popularity.asc", 1)); return true;
+            case R.id.popularity_desc : INIT_SORT= "popularity.desc"; run(callAdapterUpdater("popularity.desc", 1)); return true;
+            case R.id.vote_average_asc : INIT_SORT= "vote_average.asc"; run(callAdapterUpdater("vote_average.asc", 1)); return true;
+            case R.id.vote_average_desc : INIT_SORT= "vote_average.desc"; run(callAdapterUpdater("vote_average.desc", 1)); return true;
             default: return super.onOptionsItemSelected(item);
         }
 
     }
-    private String callAdapterUpdater(String initSort) {
 
-        //        Log.i (TAG, url);
-        return Uri.parse("http://api.themoviedb.org/3/discover/movie").buildUpon()
-                .appendQueryParameter("sort_by", initSort)
-                .appendQueryParameter("api_key", BuildConfig.TMDB).build().toString();
-    }
 
 
     @Override
@@ -149,30 +250,10 @@ public class MoviesFragment extends Fragment {
     public interface OnListFragmentInteractionListener {
         void onListFragmentInteraction(String id);
     }
-    private void parseResult(String result) {
-        try {
-            JSONObject response = new JSONObject(result);
-            JSONArray posts = response.optJSONArray("results");
-            //Log.i(TAG, posts.toString());
-            /*Initialize array if null*/
-            /*if (null == feedItemList) {
 
-            }*/
-            feedItemList = new ArrayList<>();
-            for (int i = 0; i < posts.length(); i++) {
-                JSONObject post = posts.optJSONObject(i);
 
-                FeedItem item = new FeedItem();
-                item.setId(post.optString("id"));
-                item.setThumbnail(post.optString("poster_path"));
-                feedItemList.add(item);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
     // Implementation of AsyncTask used to download JSON from tmdb
-    public class AsyncHttpTask extends AsyncTask<String, Void, Integer> {
+    /*public class AsyncHttpTask extends AsyncTask<String, Void, Integer> {
 
         @Override
         protected void onPreExecute() {
@@ -186,18 +267,18 @@ public class MoviesFragment extends Fragment {
             HttpURLConnection urlConnection;
 
             try {
-                /* forming th java.net.URL object */
+                *//* forming th java.net.URL object *//*
                 URL url = new URL(params[0]);
 
                 urlConnection = (HttpURLConnection) url.openConnection();
 
-                /* for Get request */
+                *//**//* for Get request *//**//*
                 urlConnection.setRequestMethod("GET");
 
                 int statusCode = urlConnection.getResponseCode();
 
-                /* 200 represents HTTP OK */
-                if (statusCode ==  200) {
+                *//**//* 200 represents HTTP OK *//**//*
+                if (statusCode ==  200) { Log.i (TAG, "200");
                     inputStream = urlConnection.getInputStream();
                     BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
                     StringBuilder response = new StringBuilder();
@@ -227,15 +308,13 @@ public class MoviesFragment extends Fragment {
 
 //            setProgressBarIndeterminateVisibility(false);
             //Log.i (TAG, result.toString());
-            /* Download complete. Lets update UI */
+            *//* Download complete. Lets update UI *//*
             if (result == 1) {
-
-                MyMovieRecyclerViewAdapter adapter;
-                adapter = new MyMovieRecyclerViewAdapter(MoviesFragment.this.getContext(), feedItemList, mListener);
-                mRecyclerView.setAdapter(adapter);
+                adapter.notifyItemRangeInserted(adapter.getItemCount(), 20);
+                Log.i(TAG, "Yay");
             } else {
                 Log.e(TAG, "Failed to fetch data!");
             }
         }
-    }
+    }*/
 }

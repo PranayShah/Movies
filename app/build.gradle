@@ -18,7 +18,7 @@ android {
         }
     }
     buildTypes.each {
-        it.buildConfigField 'String', 'TMDB', "\"Some key\""
+        it.buildConfigField 'String', 'TMDB', "\"2c6a59512ceb6e441cc9a181f08974d2\""
     }
     repositories {
         mavenCentral()
@@ -34,4 +34,5 @@ dependencies {
     compile 'com.google.android.gms:play-services-appindexing:8.1.0'
     compile 'com.android.support:support-v4:23.1.1'
     compile 'com.android.support:recyclerview-v7:23.1.1'
+    compile 'com.squareup.okhttp3:okhttp:3.2.0'
 }
