@@ -2,7 +2,6 @@ package in.uchneech.movies;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,10 +12,10 @@ import java.util.List;
 
 public class MyTrailersRecyclerViewAdapter extends RecyclerView.Adapter<TrailersListRowHolder> {
     private String TAG = MyTrailersRecyclerViewAdapter.class.getSimpleName();
-    private List<Videos> trailerItemList;
+    private List<Video> trailerItemList;
     private Context mContext;
 
-    public MyTrailersRecyclerViewAdapter(Context context, List<Videos> trailerItemList) {
+    public MyTrailersRecyclerViewAdapter(Context context, List<Video> trailerItemList) {
         this.trailerItemList = trailerItemList;
         this.mContext = context;
         /*Log.i(TAG, "In constructor");
@@ -37,7 +36,7 @@ public class MyTrailersRecyclerViewAdapter extends RecyclerView.Adapter<Trailers
     public void onBindViewHolder(TrailersListRowHolder trailersListRowHolder, int i) {
 //        Log.i(TAG, "In onBind"); Log.i (TAG, String.valueOf(trailersListRowHolder)); Log.i(TAG, String.valueOf(i));
 //        if (trailerItemList!=null){for (Object s : trailerItemList) {Log.i(TAG, String.valueOf(s));}} else {Log.i(TAG, "Null");}
-        Videos trailer = trailerItemList.get(i);
+        Video trailer = trailerItemList.get(i);
 //        Log.i(TAG, String.valueOf(trailerItemList.get(i)));
         if (trailer!= null ) {
 //            Log.i(TAG, trailer.getId());

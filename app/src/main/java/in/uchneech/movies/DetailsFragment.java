@@ -50,7 +50,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
  */
 public class DetailsFragment extends Fragment {
     private static final String TAG = DetailsFragment.class.getSimpleName();
-    private List<Videos> videosList;
+    private List<Video> videosList;
     private OnFragmentInteractionListener mListener;
     private MyTrailersRecyclerViewAdapter adapter;
     RecyclerView mRecyclerView;
@@ -88,12 +88,12 @@ public class DetailsFragment extends Fragment {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         TmdbInterface service = retrofit.create(TmdbInterface.class);
-        retrofit2.Call<VideosList> call = service.movieDetails(String.valueOf(id), "2c6a59512ceb6e441cc9a181f08974d2");
+        retrofit2.Call<MovieDetails> call = service.movieDetails(String.valueOf(id), "2c6a59512ceb6e441cc9a181f08974d2");
 
-        call.enqueue(new Callback<VideosList>() {
+        call.enqueue(new Callback<MovieDetails>() {
             @Override
-            public void onResponse(Call<VideosList> call, Response<VideosList> response) {
-                VideosList feed = response.body();
+            public void onResponse(Call<MovieDetails> call, Response<MovieDetails> response) {
+                MovieDetails feed = response.body();
 //                Log.i(TAG, feed.getVideos().get(0).getName());
                 /*if (page == 1) {
                     feedItemList.clear();
@@ -116,23 +116,23 @@ public class DetailsFragment extends Fragment {
                 }
             });*/
                     Log.i(TAG, "found");
-                    adapter = new MyTrailersRecyclerViewAdapter (context, videosList );
+                    adapter = new MyTrailersRecyclerViewAdapter(context, videosList);
                     mRecyclerView.setAdapter(adapter);
                     /*if (savedInstanceState != null) {
                         retroCall(savedInstanceState.getInt("ID"));
                     }*/
-                    Log.i (TAG, "Before"+ adapter.getItemCount());
-                    videosList.addAll(feed.getVideos());
+                    Log.i(TAG, "Before" + adapter.getItemCount());
+                    videosList.addAll(feed.getVideos().getResults());
                     Log.i(TAG, videosList.get(0).getName());
 
-                    adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getVideos().size());
+                    adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getVideos().getResults().size());
                     Log.i(TAG, "After" + adapter.getItemCount());
                 }
 
             }
 
             @Override
-            public void onFailure(Call<VideosList> call, Throwable t) {
+            public void onFailure(Call<MovieDetails> call, Throwable t) {
                 t.printStackTrace();
             }
         });
