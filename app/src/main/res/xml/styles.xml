@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- res/values-v19/styles.xml -->
-    <style name="AppTheme" parent="Base.AppTheme">
-        <item name="android:windowTranslucentStatus">true</item>
-    </style>
+<PreferenceScreen>
 
-    <!-- res/values-v21/styles.xml -->
-    <style name="AppTheme" parent="Base.AppTheme">
-        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-    </style>
+
 </PreferenceScreen>

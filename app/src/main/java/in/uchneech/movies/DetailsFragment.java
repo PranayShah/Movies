@@ -51,12 +51,14 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class DetailsFragment extends Fragment {
     private static final String TAG = DetailsFragment.class.getSimpleName();
     private List<Video> videosList;
+    private List<Review> reviewsList;
     private OnFragmentInteractionListener mListener;
     private MyTrailersRecyclerViewAdapter adapter;
     RecyclerView mRecyclerView;
     public DetailsFragment() {
         // Required empty public constructor
         videosList = new ArrayList<>();
+        reviewsList = new ArrayList<>();
     }
 
     @Override
@@ -115,7 +117,7 @@ public class DetailsFragment extends Fragment {
                     retroCall(INIT_SORT, page+1);
                 }
             });*/
-                    Log.i(TAG, "found");
+
                     adapter = new MyTrailersRecyclerViewAdapter(context, videosList);
                     mRecyclerView.setAdapter(adapter);
                     /*if (savedInstanceState != null) {
@@ -127,6 +129,19 @@ public class DetailsFragment extends Fragment {
 
                     adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getVideos().getResults().size());
                     Log.i(TAG, "After" + adapter.getItemCount());
+                }
+                RecyclerView tRecyclerView = (RecyclerView) getView().findViewById(R.id.reviews_list);
+                if (tRecyclerView != null) {
+                    Context context = tRecyclerView.getContext();
+                    LinearLayoutManager mLayout = new LinearLayoutManager(context);
+                    mLayout.setAutoMeasureEnabled(true);
+                    tRecyclerView.setLayoutManager(mLayout);
+                    MyReviewsRecyclerViewAdapter adapter = new MyReviewsRecyclerViewAdapter(context, reviewsList);
+                    tRecyclerView.setAdapter(adapter);
+                    reviewsList.addAll(feed.getReviews().getResults());
+                    adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getReviews().getResults().size());
+                } else {
+                    Log.i(TAG, "tRecycler null");
                 }
 
             }
