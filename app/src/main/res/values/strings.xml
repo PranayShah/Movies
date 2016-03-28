@@ -115,4 +115,7 @@
     </string>
     <string name="base_url">http://api.themoviedb.org/3/discover/movie</string>
     <string name="contentDes_movieDetail_poster">The movie poster</string>
+    <string name="title_activity_scrolling">ScrollingActivity</string>
+    <string name="votes_menu">Votes average</string>
+    <string name="popularity_menu">Popularity</string>
 </resources>

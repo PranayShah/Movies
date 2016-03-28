@@ -1,8 +1,8 @@
 package in.uchneech.movies;
 
 import android.content.Context;
-import android.net.Uri;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
@@ -15,20 +15,18 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.facebook.stetho.okhttp3.StethoInterceptor;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Headers;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * A fragment representing a list of Items.
@@ -38,11 +36,10 @@ import okhttp3.Response;
  */
 public class MoviesFragment extends Fragment {
     private static final String TAG = MoviesFragment.class.getSimpleName();
-    private static String INIT_SORT = "popularity.desc";
+    private static String INIT_SORT = "popular";
     private static int page = 1;
-    private final OkHttpClient client = new OkHttpClient();
-    private List<FeedItem> feedItemList;
-
+    private MoviesList feed;
+    private List<Result> feedItemList;
     MyMovieRecyclerViewAdapter adapter;
 
     private static final String ARG_COLUMN_COUNT = "column-count";
@@ -96,9 +93,10 @@ public class MoviesFragment extends Fragment {
             mRecyclerView.addOnScrollListener(new EndlessRecyclerViewScrollListener(gridLayoutManager) {
                 @Override
                 public void onLoadMore(int page, int totalItemsCount) {
+                    //Log.i(TAG, String.valueOf(page)+ " "+ String.valueOf(totalItemsCount));
                     // Triggered only when new data needs to be appended to the list
                     // Add whatever code is needed to append new items to the bottom of the list
-                    run(callAdapterUpdater(INIT_SORT, page));
+                    retroCall(INIT_SORT, page+1);
                 }
             });
 
@@ -106,11 +104,11 @@ public class MoviesFragment extends Fragment {
             mRecyclerView.setAdapter(adapter);
             if (savedInstanceState != null)
             {
-                run(callAdapterUpdater(savedInstanceState.getString("INIT_SORT"), savedInstanceState.getInt("page")));
+                retroCall(savedInstanceState.getString("INIT_SORT"), savedInstanceState.getInt("page"));
             }
             else
             {
-                run(callAdapterUpdater(INIT_SORT, page));
+                retroCall(INIT_SORT, page);
             }
 
         }
@@ -125,62 +123,55 @@ public class MoviesFragment extends Fragment {
         // Always call the superclass so it can save the view hierarchy state
         super.onSaveInstanceState(savedInstanceState);
     }
-    private String callAdapterUpdater(String initSort, int page) {
+    private void retroCall(String initSort, final int page) {
 
         //        Log.i (TAG, url);
-        String url = Uri.parse("http://api.themoviedb.org/3/discover/movie").buildUpon()
-                .appendQueryParameter("sort_by", initSort)
-                .appendQueryParameter("page", String.valueOf(page))
-                .appendQueryParameter("api_key", BuildConfig.TMDB).build().toString(); Log.i(TAG, url); return url;
-    }
 
-    public void run(String url)  {
-        int postsLength = 0;
-        Request request = new Request.Builder()
-                .url(url)
+        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+        interceptor.setLevel(HttpLoggingInterceptor.Level.BASIC);
+        OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor).addNetworkInterceptor(new StethoInterceptor()).build();
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://api.themoviedb.org/")
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
                 .build();
+        TmdbInterface service = retrofit.create(TmdbInterface.class);
+        retrofit2.Call<MoviesList> call = service.discover(initSort, page, "2c6a59512ceb6e441cc9a181f08974d2");
 
-        client.newCall(request).enqueue(new Callback() {
+        call.enqueue(new Callback<MoviesList>() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
+            public void onResponse(Call<MoviesList> call, Response<MoviesList> response) {
+                feed = response.body(); Log.i (TAG, feed.getResults().get(0).getTitle());
+                if (page == 1) {feedItemList.clear(); adapter.notifyDataSetChanged();}
+                feedItemList.addAll(feed.getResults()); Log.i(TAG, feedItemList.get(0).getTitle());
+                adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getResults().size());
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-
-                Headers responseHeaders = response.headers();
-                for (int i = 0, size = responseHeaders.size(); i < size; i++) {
-                    System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
-                }
-
-                //System.out.println(response.body().string());
-                String myResponse =  response.body().string();
-                //Do something with response
-                //...
-
-                MoviesFragment.this.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        //Handle UI here
-
-                    }
-                });
+            public void onFailure(Call<MoviesList> call, Throwable t) {
+                t.printStackTrace();
             }
         });
+
+        /*if (contributors != null) {
+            for (FeedItem contributor : contributors) {
+                System.out.println(
+                        contributor.getId() + " (" + contributor.getThumbnail() + ")");
+            }
+        }*/
     }
 
-    private int parseResult(String result) {
+
+    /*private int parseResult(String result) {
         JSONArray posts = null;
         try {
             JSONObject response = new JSONObject(result);
             posts = response.optJSONArray("results");
             //Log.i(TAG, posts.toString());
-            /*Initialize array if null*/
-            /*if (null == feedItemList) {
+            *//*Initialize array if null*//*
+            *//*if (null == feedItemList) {
 
-            }*/
+            }*//*
             feedItemList = new ArrayList<>();
             for (int i = 0; i < posts.length(); i++) {
                 JSONObject post = posts.optJSONObject(i);
@@ -196,7 +187,7 @@ public class MoviesFragment extends Fragment {
         } finally {
             return posts != null? posts.length(): 0;
         }
-    }
+    }*/
 
     @Override
     public void onCreateOptionsMenu (Menu menu, MenuInflater inflater)
@@ -209,13 +200,10 @@ public class MoviesFragment extends Fragment {
     {
         switch (item.getItemId())
         {
-            case R.id.popularity_asc :INIT_SORT= "popularity.asc"; run(callAdapterUpdater("popularity.asc", 1)); return true;
-            case R.id.popularity_desc : INIT_SORT= "popularity.desc"; run(callAdapterUpdater("popularity.desc", 1)); return true;
-            case R.id.vote_average_asc : INIT_SORT= "vote_average.asc"; run(callAdapterUpdater("vote_average.asc", 1)); return true;
-            case R.id.vote_average_desc : INIT_SORT= "vote_average.desc"; run(callAdapterUpdater("vote_average.desc", 1)); return true;
+            case R.id.popularity :INIT_SORT= "popular"; retroCall("popular", 1); return true;
+            case R.id.vote : INIT_SORT= "top_rated"; retroCall("top_rated", 1); return true;
             default: return super.onOptionsItemSelected(item);
         }
-
     }
 
 
@@ -248,7 +236,7 @@ public class MoviesFragment extends Fragment {
      * >Communicating with Other Fragments</a> for more information.
      */
     public interface OnListFragmentInteractionListener {
-        void onListFragmentInteraction(String id);
+        void onListFragmentInteraction(Parcelable parcel);
     }
 
 

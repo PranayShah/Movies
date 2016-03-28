@@ -5,13 +5,9 @@
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:checkableBehavior="single">
-        <item android:title="Popularity ascending"
-            android:id="@+id/popularity_asc" />
-        <item android:id="@+id/popularity_desc"
-            android:title="Popularity descending" />
-        <item android:id="@+id/vote_average_asc"
-            android:title="Rating ascending" />
-        <item android:id="@+id/vote_average_desc"
-            android:title="Rating descending" />
+        <item android:id="@+id/vote"
+            android:title="@string/votes_menu" />
+        <item android:id="@+id/popularity"
+            android:title="@string/popularity_menu" />
             </group>
 </menu>

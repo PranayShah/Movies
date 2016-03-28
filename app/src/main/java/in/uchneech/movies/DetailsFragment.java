@@ -4,8 +4,10 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.v4.app.Fragment;
-import android.support.v7.widget.Toolbar;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,16 +15,29 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.facebook.stetho.okhttp3.StethoInterceptor;
 import com.squareup.picasso.Picasso;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.parceler.Parcels;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 
 /**
@@ -30,39 +45,18 @@ import java.net.URL;
  * Activities that contain this fragment must implement the
  * {@link DetailsFragment.OnFragmentInteractionListener} interface
  * to handle interaction events.
- * Use the {@link DetailsFragment#newInstance} factory method to
+ * Use the  factory method to
  * create an instance of this fragment.
  */
 public class DetailsFragment extends Fragment {
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
-    private static final String LOG_TAG = DetailsFragment.class.getSimpleName();
-    // TODO: Rename and change types of parameters
-
+    private static final String TAG = DetailsFragment.class.getSimpleName();
+    private List<Videos> videosList;
     private OnFragmentInteractionListener mListener;
-
+    private MyTrailersRecyclerViewAdapter adapter;
+    RecyclerView mRecyclerView;
     public DetailsFragment() {
         // Required empty public constructor
-    }
-
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment DetailsFragment.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static DetailsFragment newInstance(String param1, String param2) {
-        DetailsFragment fragment = new DetailsFragment();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
-        return fragment;
+        videosList = new ArrayList<>();
     }
 
     @Override
@@ -74,7 +68,81 @@ public class DetailsFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_details, container, false);
+        View view =  inflater.inflate(R.layout.content_scrolling, container, false);
+
+
+//        DetailsFragment detailsFragment = (DetailsFragment) getFragmentManager().findFragmentById(R.id.details_frag);
+        return view;
+    }
+
+    private void retroCall(Integer id) {
+
+        //        Log.i (TAG, url);
+
+        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+        interceptor.setLevel(HttpLoggingInterceptor.Level.BASIC);
+        OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor).addNetworkInterceptor(new StethoInterceptor()).build();
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://api.themoviedb.org/")
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        TmdbInterface service = retrofit.create(TmdbInterface.class);
+        retrofit2.Call<VideosList> call = service.movieDetails(String.valueOf(id), "2c6a59512ceb6e441cc9a181f08974d2");
+
+        call.enqueue(new Callback<VideosList>() {
+            @Override
+            public void onResponse(Call<VideosList> call, Response<VideosList> response) {
+                VideosList feed = response.body();
+//                Log.i(TAG, feed.getVideos().get(0).getName());
+                /*if (page == 1) {
+                    feedItemList.clear();
+                    adapter.notifyDataSetChanged();
+                }*/
+                mRecyclerView = (RecyclerView) getView().findViewById(R.id.trailer_list);
+                if (mRecyclerView != null) {
+                    Context context = mRecyclerView.getContext();
+                    LinearLayoutManager mLayout = new LinearLayoutManager(context);
+                    mLayout.setAutoMeasureEnabled(true);
+                    mRecyclerView.setLayoutManager(mLayout);
+                    // Add the scroll listener
+            /*mRecyclerView.addOnScrollListener(new EndlessRecyclerViewScrollListener(gridLayoutManager) {
+                @Override
+                public void onLoadMore(int page, int totalItemsCount) {
+                    //Log.i(TAG, String.valueOf(page)+ " "+ String.valueOf(totalItemsCount));
+                    // Triggered only when new data needs to be appended to the list
+                    // Add whatever code is needed to append new items to the bottom of the list
+                    retroCall(INIT_SORT, page+1);
+                }
+            });*/
+                    Log.i(TAG, "found");
+                    adapter = new MyTrailersRecyclerViewAdapter (context, videosList );
+                    mRecyclerView.setAdapter(adapter);
+                    /*if (savedInstanceState != null) {
+                        retroCall(savedInstanceState.getInt("ID"));
+                    }*/
+                    Log.i (TAG, "Before"+ adapter.getItemCount());
+                    videosList.addAll(feed.getVideos());
+                    Log.i(TAG, videosList.get(0).getName());
+
+                    adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getVideos().size());
+                    Log.i(TAG, "After" + adapter.getItemCount());
+                }
+
+            }
+
+            @Override
+            public void onFailure(Call<VideosList> call, Throwable t) {
+                t.printStackTrace();
+            }
+        });
+
+        /*if (contributors != null) {
+            for (FeedItem contributor : contributors) {
+                System.out.println(
+                        contributor.getId() + " (" + contributor.getThumbnail() + ")");
+            }
+        }*/
     }
 
     @Override
@@ -94,58 +162,71 @@ public class DetailsFragment extends Fragment {
         mListener = null;
     }
 
-    public void updateContent(String movieId) {
-        String url = Uri.parse("http://api.themoviedb.org/3/movie/").buildUpon()
-                .appendEncodedPath(movieId)
-                .appendQueryParameter("api_key", BuildConfig.TMDB).build().toString();
-        Log.i(LOG_TAG, url);
-        new AsyncHttpTask().execute(url);
-    }
-
-    private JSONObject parseResult(String result) {
-        JSONObject response = null;
-        try {
-            response = new JSONObject(result);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return response;
-    }
-
-    private void UIupdater(JSONObject response) {
-        DetailsFragment detailsFragment = (DetailsFragment) getFragmentManager().findFragmentById(R.id.details_frag);
-
+    public void updateContent(Parcelable parcel) {
+        Result result = Parcels.unwrap(parcel);
+        String movieId = String.valueOf( result.id);
         try {
             TextView date = (TextView) getView().findViewById(R.id.date),
                     overview = (TextView) getView().findViewById(R.id.overview), votes = (TextView) getView().findViewById(R.id.vote_average);
-            ImageView poster = (ImageView) getView().findViewById(R.id.poster);
+            ImageView poster = (ImageView) getActivity().findViewById(R.id.poster);
 
-            if (! response.isNull("release_date"))
+            if (result.release_date != null)
             {
-                date.setText(response.getString("release_date"));
+                //Log.i(TAG, result.release_date);
+                date.setText(result.release_date);
             }
-            if (! response.isNull("vote_average"))
+            if (result.vote_average != null)
             {
-                votes.setText(response.getString("vote_average"));
+                votes.setText(result.vote_average.toString());
             }
-            if (! response.isNull("overview"))
+            if (result.overview != null)
             {
-                overview.setText(response.getString("overview"));
+                overview.setText(result.overview);
             }
-            if (! response.isNull("poster_path"))
+            if (result.poster_path != null)
             {
-                Picasso.with(detailsFragment.getContext()).load("http://image.tmdb.org/t/p/w185"+response.getString("poster_path"))
+                Picasso.with(getActivity()).load("http://image.tmdb.org/t/p/w185"+result.poster_path)
                         .into(poster);
 
             }
         }
-        catch (JSONException e) {
+        catch (Exception e)
+        {
             e.printStackTrace();
         }
+        retroCall(result.getId());
+        /*String url = Uri.parse("http://api.themoviedb.org/3/movie/").buildUpon()
+                .appendEncodedPath(movieId)
+                .appendPath("videos")
+                .appendQueryParameter("api_key", BuildConfig.TMDB)
+                .appendQueryParameter("append_to_response", "reviews").build().toString();
+        Log.i(TAG, url);
+        new AsyncHttpTask().execute(url);*/
     }
 
+    private List parseResult(String result) {
+        JSONObject response;
+        JSONArray   posts;
+        List temp = new ArrayList();
+        try {
+            response = new JSONObject(result);
+            posts = response.optJSONArray("results");
+            Log.i(TAG, posts.toString());
+
+        for (int i = 0; i < posts.length(); i++) {
+            JSONObject post = posts.optJSONObject(i);
+            temp.add(post.getString("key"));
+        }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return temp;
+    }
+
+
+
     // Implementation of AsyncTask used to download JSON from tmdb
-    public class AsyncHttpTask extends AsyncTask<String, Void, JSONObject> {
+    public class AsyncHttpTask extends AsyncTask<String, Void, List> {
 
         @Override
         protected void onPreExecute() {
@@ -153,9 +234,9 @@ public class DetailsFragment extends Fragment {
         }
 
         @Override
-        protected JSONObject doInBackground(String... params) {
+        protected List doInBackground(String... params) {
             InputStream inputStream;
-            JSONObject afterParse = null;
+            List afterParse = null;
             HttpURLConnection urlConnection;
 
             try {
@@ -183,7 +264,7 @@ public class DetailsFragment extends Fragment {
                 }
 
             } catch (Exception e) {
-                Log.d(LOG_TAG, e.getLocalizedMessage());
+                Log.d(TAG, e.getLocalizedMessage());
             }
             finally {
                 inputStream = null; urlConnection = null;
@@ -193,25 +274,29 @@ public class DetailsFragment extends Fragment {
         }
 
         @Override
-        protected void onPostExecute(JSONObject afterParse) {
+        protected void onPostExecute(List afterParse) {
 
-//            setProgressBarIndeterminateVisibility(false);
-            //Log.i (TAG, result.toString());
-            /* Download complete. Lets update UI */
-            Toolbar myToolbar = (Toolbar) getActivity().findViewById(R.id.my_toolbar);
-            if (afterParse != null) {
-                if (!afterParse.isNull("title"))
-                {
-                    try {
-                        myToolbar.setTitle(afterParse.getString("title"));
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+            /*if (afterParse != null) { Log.i(TAG, String.valueOf(adapter.getItemCount()));
+                if (str != null) {
+                    //str.clear();
+                    //str.addAll(afterParse) ;
+                } else { Log.i (TAG, "NULL");}
+                Log.i(TAG, String.valueOf(adapter.getItemCount()));Log.i(TAG, String.valueOf(str.size()));
+                for (Object s : str) {Log.i(TAG, String.valueOf(s));}
+                //adapter.notifyItemRangeInserted(adapter.getItemCount(), str.size());
+//                adapter.notifyDataSetChanged();
+                *//*ImageButton imageButton = (ImageButton) getView().findViewById(R.id.playIntent);
+                imageButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent tostart = new Intent(Intent.ACTION_VIEW);
+                        tostart.setDataAndType(Uri.parse(, "video*//**//*");
+                        startActivity(tostart);
                     }
-                }
-                UIupdater(afterParse);
+                });*//*
             } else {
-                Log.e(LOG_TAG, "Failed to fetch data!");
-            }
+                Log.e(TAG, "Failed to fetch data!");
+            }*/
         }
     }
     /**

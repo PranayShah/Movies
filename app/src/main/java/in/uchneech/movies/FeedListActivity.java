@@ -6,16 +6,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import org.parceler.Parcels;
+
 public class FeedListActivity extends AppCompatActivity implements MoviesFragment.OnListFragmentInteractionListener, DetailsFragment.OnFragmentInteractionListener{
-//    private final String LOG_TAG = FeedListActivity.class.getSimpleName();
+   private final String LOG_TAG = FeedListActivity.class.getSimpleName();
 // Constants
 // The authority for the sync adapter's content provider
-public static final String AUTHORITY = "com.example.android.datasync.provider";
+    public static final String AUTHORITY = "com.example.android.datasync.provider";
     // An account type, in the form of a domain name
     public static final String ACCOUNT_TYPE = "example.com";
     // The account name
@@ -82,18 +86,19 @@ public static final String AUTHORITY = "com.example.android.datasync.provider";
     }
 
     @Override
-    public void onListFragmentInteraction(String movieId) {
+    public void onListFragmentInteraction(Parcelable parcel) {
+        Log.i(LOG_TAG, String.valueOf(Parcels.unwrap(parcel)));
         if (findViewById(R.id.frag_container) != null)
         {
-            Intent intent = new Intent(this, Detail.class);
-            intent.putExtra("movieId", movieId);
+            Intent intent = new Intent(this, DetailActivity.class);
+            intent.putExtra("movieId", parcel);
             startActivity(intent);
         }
         else
         {
             DetailsFragment displayFrag = (DetailsFragment) getSupportFragmentManager()
                     .findFragmentById(R.id.details_frag);
-            displayFrag.updateContent (movieId);
+            displayFrag.updateContent (parcel);
             //MoviesFragment moviesFragment = (MoviesFragment) getSupportFragmentManager().findFragmentById((R.id.list_frag));
 
         }
