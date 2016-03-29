@@ -16,15 +16,10 @@
         android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
         tools:ignore="UnusedAttribute" />
-
-    <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    <fragment class="in.uchneech.movies.MoviesFragment"
+        android:id="@+id/list_frag"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="?attr/actionBarSize"
-        android:id="@+id/frag_container">
-        <fragment class="in.uchneech.movies.MoviesFragment"
-            android:id="@+id/list_frag"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
-    </FrameLayout>
+        tools:layout="@android:layout/two_line_list_item" />
 </android.support.design.widget.CoordinatorLayout>

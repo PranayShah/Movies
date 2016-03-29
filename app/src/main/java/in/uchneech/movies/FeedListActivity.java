@@ -26,6 +26,8 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
     public static final String ACCOUNT = "dummyaccount";
     // Instance fields
     Account mAccount;
+    private boolean movieSelected = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -77,6 +79,23 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        if (menu.findItem(R.id.favourites)==null && movieSelected==true)
+        {
+            menu.add (Menu.NONE, R.id.favourites,Menu.NONE,"Add to favourites").setOnMenuItemClickListener(
+                    new MenuItem.OnMenuItemClickListener() {
+                        @Override
+                        public boolean onMenuItemClick(MenuItem item) {
+                            return false;
+                        }
+                    }
+            ).setIcon(android.R.drawable.btn_star).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
@@ -88,14 +107,17 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
     @Override
     public void onListFragmentInteraction(Parcelable parcel) {
         Log.i(LOG_TAG, String.valueOf(Parcels.unwrap(parcel)));
-        if (findViewById(R.id.frag_container) != null)
+        if (findViewById(R.id.frag_container) == null)
         {
+            movieSelected = true;
+            invalidateOptionsMenu();
             Intent intent = new Intent(this, DetailActivity.class);
             intent.putExtra("movieId", parcel);
             startActivity(intent);
         }
         else
         {
+            invalidateOptionsMenu();
             DetailsFragment displayFrag = (DetailsFragment) getSupportFragmentManager()
                     .findFragmentById(R.id.details_frag);
             displayFrag.updateContent (parcel);
