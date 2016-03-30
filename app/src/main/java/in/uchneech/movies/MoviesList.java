@@ -8,10 +8,10 @@ import java.util.Map;
 public class MoviesList {
 
     private Integer page;
-    private List<Result> results = new ArrayList<Result>();
+    private List<Result> results = new ArrayList<>();
     private Integer totalPages;
     private Integer totalResults;
-    private Map<String, Object> additionalProperties = new HashMap<String, Object>();
+    private Map<String, Object> additionalProperties = new HashMap<>();
 
     /**
      *

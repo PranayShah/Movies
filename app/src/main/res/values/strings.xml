@@ -118,4 +118,5 @@
     <string name="title_activity_scrolling">ScrollingActivity</string>
     <string name="votes_menu">Votes average</string>
     <string name="popularity_menu">Popularity</string>
+    <string name="favourites">Favourites</string>
 </resources>

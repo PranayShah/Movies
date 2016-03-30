@@ -2,7 +2,6 @@ package in.uchneech.movies;
 
 import android.content.Context;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v4.app.Fragment;
@@ -18,16 +17,8 @@ import android.widget.TextView;
 import com.facebook.stetho.okhttp3.StethoInterceptor;
 import com.squareup.picasso.Picasso;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.parceler.Parcels;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,11 +61,10 @@ public class DetailsFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view =  inflater.inflate(R.layout.content_scrolling, container, false);
 
 
 //        DetailsFragment detailsFragment = (DetailsFragment) getFragmentManager().findFragmentById(R.id.details_frag);
-        return view;
+        return inflater.inflate(R.layout.content_scrolling, container, false);
     }
 
     private void retroCall(Integer id) {
@@ -90,7 +80,7 @@ public class DetailsFragment extends Fragment {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         TmdbInterface service = retrofit.create(TmdbInterface.class);
-        retrofit2.Call<MovieDetails> call = service.movieDetails(String.valueOf(id), "2c6a59512ceb6e441cc9a181f08974d2");
+        retrofit2.Call<MovieDetails> call = service.movieDetails(String.valueOf(id), BuildConfig.TMDB);
 
         call.enqueue(new Callback<MovieDetails>() {
             @Override
@@ -123,12 +113,12 @@ public class DetailsFragment extends Fragment {
                     /*if (savedInstanceState != null) {
                         retroCall(savedInstanceState.getInt("ID"));
                     }*/
-                    Log.i(TAG, "Before" + adapter.getItemCount());
+//                    Log.i(TAG, "Before" + adapter.getItemCount());
                     videosList.addAll(feed.getVideos().getResults());
-                    Log.i(TAG, videosList.get(0).getName());
+//                    Log.i(TAG, videosList.get(0).getName());
 
                     adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getVideos().getResults().size());
-                    Log.i(TAG, "After" + adapter.getItemCount());
+//                    Log.i(TAG, "After" + adapter.getItemCount());
                 }
                 RecyclerView tRecyclerView = (RecyclerView) getView().findViewById(R.id.reviews_list);
                 if (tRecyclerView != null) {
@@ -179,7 +169,6 @@ public class DetailsFragment extends Fragment {
 
     public void updateContent(Parcelable parcel) {
         Result result = Parcels.unwrap(parcel);
-        String movieId = String.valueOf( result.id);
         try {
             TextView date = (TextView) getView().findViewById(R.id.date),
                     overview = (TextView) getView().findViewById(R.id.overview), votes = (TextView) getView().findViewById(R.id.vote_average);
@@ -192,7 +181,7 @@ public class DetailsFragment extends Fragment {
             }
             if (result.vote_average != null)
             {
-                votes.setText(result.vote_average.toString());
+                votes.setText(String.format("%f", result.vote_average));
             }
             if (result.overview != null)
             {
@@ -219,101 +208,11 @@ public class DetailsFragment extends Fragment {
         new AsyncHttpTask().execute(url);*/
     }
 
-    private List parseResult(String result) {
-        JSONObject response;
-        JSONArray   posts;
-        List temp = new ArrayList();
-        try {
-            response = new JSONObject(result);
-            posts = response.optJSONArray("results");
-            Log.i(TAG, posts.toString());
-
-        for (int i = 0; i < posts.length(); i++) {
-            JSONObject post = posts.optJSONObject(i);
-            temp.add(post.getString("key"));
-        }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return temp;
-    }
 
 
 
-    // Implementation of AsyncTask used to download JSON from tmdb
-    public class AsyncHttpTask extends AsyncTask<String, Void, List> {
 
-        @Override
-        protected void onPreExecute() {
-//            setProgressBarIndeterminateVisibility(true);
-        }
 
-        @Override
-        protected List doInBackground(String... params) {
-            InputStream inputStream;
-            List afterParse = null;
-            HttpURLConnection urlConnection;
-
-            try {
-                /* forming th java.net.URL object */
-                URL url = new URL(params[0]);
-
-                urlConnection = (HttpURLConnection) url.openConnection();
-
-                /* for Get request */
-                urlConnection.setRequestMethod("GET");
-
-                int statusCode = urlConnection.getResponseCode();
-
-                /* 200 represents HTTP OK */
-                if (statusCode ==  200) {
-                    inputStream = urlConnection.getInputStream();
-                    BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = r.readLine()) != null) {
-                        response.append(line);
-                    }
-
-                    afterParse = parseResult(response.toString());
-                }
-
-            } catch (Exception e) {
-                Log.d(TAG, e.getLocalizedMessage());
-            }
-            finally {
-                inputStream = null; urlConnection = null;
-            }
-
-            return afterParse; //"Failed to fetch data!";
-        }
-
-        @Override
-        protected void onPostExecute(List afterParse) {
-
-            /*if (afterParse != null) { Log.i(TAG, String.valueOf(adapter.getItemCount()));
-                if (str != null) {
-                    //str.clear();
-                    //str.addAll(afterParse) ;
-                } else { Log.i (TAG, "NULL");}
-                Log.i(TAG, String.valueOf(adapter.getItemCount()));Log.i(TAG, String.valueOf(str.size()));
-                for (Object s : str) {Log.i(TAG, String.valueOf(s));}
-                //adapter.notifyItemRangeInserted(adapter.getItemCount(), str.size());
-//                adapter.notifyDataSetChanged();
-                *//*ImageButton imageButton = (ImageButton) getView().findViewById(R.id.playIntent);
-                imageButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Intent tostart = new Intent(Intent.ACTION_VIEW);
-                        tostart.setDataAndType(Uri.parse(, "video*//**//*");
-                        startActivity(tostart);
-                    }
-                });*//*
-            } else {
-                Log.e(TAG, "Failed to fetch data!");
-            }*/
-        }
-    }
     /**
      * This interface must be implemented by activities that contain this
      * fragment to allow an interaction in this fragment to be communicated

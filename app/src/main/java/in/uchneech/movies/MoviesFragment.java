@@ -1,6 +1,11 @@
 package in.uchneech.movies;
 
 import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v4.app.Fragment;
@@ -64,6 +69,15 @@ public class MoviesFragment extends Fragment {
     }
 
     @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        // Always call the superclass so it can save the view hierarchy state
+        super.onSaveInstanceState(savedInstanceState);
+        // Save the user's current game state
+        savedInstanceState.putString("INIT_SORT", INIT_SORT);
+        savedInstanceState.putInt("page", page);
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
@@ -71,7 +85,6 @@ public class MoviesFragment extends Fragment {
             mColumnCount = getArguments().getInt(ARG_COLUMN_COUNT);
         }
     }
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -96,7 +109,7 @@ public class MoviesFragment extends Fragment {
                     //Log.i(TAG, String.valueOf(page)+ " "+ String.valueOf(totalItemsCount));
                     // Triggered only when new data needs to be appended to the list
                     // Add whatever code is needed to append new items to the bottom of the list
-                    retroCall(INIT_SORT, page+1);
+                    retroCall(INIT_SORT, page + 1);
                 }
             });
 
@@ -104,25 +117,34 @@ public class MoviesFragment extends Fragment {
             mRecyclerView.setAdapter(adapter);
             if (savedInstanceState != null)
             {
-                retroCall(savedInstanceState.getString("INIT_SORT"), savedInstanceState.getInt("page"));
+//                Log.i (TAG, "saved"); Log.i (TAG,savedInstanceState.getString("INIT_SORT")); Log.i (TAG, String.valueOf (savedInstanceState.getInt ("page")));
+                if (savedInstanceState.getString("INIT_SORT") == "favourites")
+                {
+                    new DBAsyncRead().execute();
+                }
+                else
+                {
+                    retroCall(savedInstanceState.getString("INIT_SORT"), savedInstanceState.getInt("page"));
+                }
+
             }
-            else
-            {
-                retroCall(INIT_SORT, page);
+            else {
+//                Log.i(TAG, INIT_SORT); Log.i (TAG, String.valueOf(page));
+                if (INIT_SORT == "favourites")
+                {
+                    new DBAsyncRead().execute();
+                }
+                else
+                {
+                    retroCall(INIT_SORT, page);
+                }
+
             }
 
         }
         return view;
     }
-    @Override
-    public void onSaveInstanceState(Bundle savedInstanceState) {
-        // Save the user's current game state
-        savedInstanceState.putString("INIT_SORT", INIT_SORT);
-        savedInstanceState.putInt("page", page);
 
-        // Always call the superclass so it can save the view hierarchy state
-        super.onSaveInstanceState(savedInstanceState);
-    }
     private void retroCall(String initSort, final int page) {
 
         //        Log.i (TAG, url);
@@ -136,15 +158,28 @@ public class MoviesFragment extends Fragment {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         TmdbInterface service = retrofit.create(TmdbInterface.class);
-        retrofit2.Call<MoviesList> call = service.discover(initSort, page, "2c6a59512ceb6e441cc9a181f08974d2");
+        retrofit2.Call<MoviesList> call = service.discover(initSort, page, BuildConfig.TMDB);
 
         call.enqueue(new Callback<MoviesList>() {
             @Override
             public void onResponse(Call<MoviesList> call, Response<MoviesList> response) {
-                feed = response.body(); Log.i (TAG, feed.getResults().get(0).getTitle());
-                if (page == 1) {feedItemList.clear(); adapter.notifyDataSetChanged();}
-                feedItemList.addAll(feed.getResults()); Log.i(TAG, feedItemList.get(0).getTitle());
-                adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getResults().size());
+                if (response != null) {
+                    feed = response.body();
+                    if (feed != null) {
+
+                        if (page == 1) {
+                            feedItemList.clear();
+                            adapter.notifyDataSetChanged();
+                        }
+                        feedItemList.addAll(feed.getResults());
+                        adapter.notifyItemRangeInserted(adapter.getItemCount(), feed.getResults().size());
+                    } else {
+                        Log.i(TAG, "Feed null");
+                    }
+                } else {
+                    Log.i(TAG, "Response null");
+                }
+
             }
 
             @Override
@@ -152,60 +187,40 @@ public class MoviesFragment extends Fragment {
                 t.printStackTrace();
             }
         });
-
-        /*if (contributors != null) {
-            for (FeedItem contributor : contributors) {
-                System.out.println(
-                        contributor.getId() + " (" + contributor.getThumbnail() + ")");
-            }
-        }*/
     }
 
-
-    /*private int parseResult(String result) {
-        JSONArray posts = null;
-        try {
-            JSONObject response = new JSONObject(result);
-            posts = response.optJSONArray("results");
-            //Log.i(TAG, posts.toString());
-            *//*Initialize array if null*//*
-            *//*if (null == feedItemList) {
-
-            }*//*
-            feedItemList = new ArrayList<>();
-            for (int i = 0; i < posts.length(); i++) {
-                JSONObject post = posts.optJSONObject(i);
-
-                FeedItem item = new FeedItem();
-                item.setId(post.optString("id"));
-                item.setThumbnail(post.optString("poster_path"));
-                feedItemList.add(item);
-            }
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } finally {
-            return posts != null? posts.length(): 0;
-        }
-    }*/
 
     @Override
     public void onCreateOptionsMenu (Menu menu, MenuInflater inflater)
     {
+        ConnectivityManager cm =
+                (ConnectivityManager)getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        boolean isConnected = activeNetwork != null &&
+                activeNetwork.isConnectedOrConnecting();
+        if (isConnected)
         inflater.inflate(R.menu.menu_list, menu);
+        else inflater.inflate (R.menu.menu_no_internet, menu);
         super.onCreateOptionsMenu(menu, inflater);
     }
     @Override
     public boolean onOptionsItemSelected (MenuItem item)
     {
+        item.setChecked(true);
         switch (item.getItemId())
         {
-            case R.id.popularity :INIT_SORT= "popular"; retroCall("popular", 1); return true;
+            case R.id.popularity :INIT_SORT = "popular";
+                retroCall("popular", 1);  return true;
             case R.id.vote : INIT_SORT= "top_rated"; retroCall("top_rated", 1); return true;
+            case R.id.favouritesMenuItem : INIT_SORT= "favourites"; favouritesChosen(); return true;
             default: return super.onOptionsItemSelected(item);
         }
     }
 
+    private void favouritesChosen() {
+        new DBAsyncRead().execute();
+    }
 
 
     @Override
@@ -239,70 +254,46 @@ public class MoviesFragment extends Fragment {
         void onListFragmentInteraction(Parcelable parcel);
     }
 
-
-    // Implementation of AsyncTask used to download JSON from tmdb
-    /*public class AsyncHttpTask extends AsyncTask<String, Void, Integer> {
+    class DBAsyncRead extends AsyncTask<Void, Void, List<Result>>
+    {
 
         @Override
-        protected void onPreExecute() {
-//            setProgressBarIndeterminateVisibility(true);
+        protected List<Result> doInBackground(Void... params) {
+            MovieOpenHelper movieOpenHelper = new MovieOpenHelper(getContext());
+            SQLiteDatabase db = movieOpenHelper.getReadableDatabase();
+            Cursor c = db.query(
+                    MoviesContract.Movie.TABLE_NAME,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+            c.moveToFirst();
+            List <Result> results = new ArrayList<>();
+            for (int i=1; i<= c.getCount(); i++)
+            {
+                Result result = new Result();
+                result.setId(c.getInt(c.getColumnIndex(MoviesContract.Movie._ID)));
+//                Log.i(TAG, String.valueOf(result.id));
+                result.setOverview(c.getString(c.getColumnIndex(MoviesContract.Movie.COLUMN_NAME_overview)));
+                result.setPosterPath(c.getString(c.getColumnIndex(MoviesContract.Movie.COLUMN_NAME_poster_path)));
+                result.setReleaseDate(c.getString(c.getColumnIndex(MoviesContract.Movie.COLUMN_NAME_release_date)));
+                result.setTitle(c.getString(c.getColumnIndex(MoviesContract.Movie.COLUMN_NAME_title)));
+                result.setVoteAverage(c.getDouble(c.getColumnIndex(MoviesContract.Movie.COLUMN_NAME_vote_average)));
+                results.add(result);
+                c.moveToNext();
+            }
+            c.close();
+            return results;
         }
 
         @Override
-        protected Integer doInBackground(String... params) {
-            InputStream inputStream;
-            Integer result = 0;
-            HttpURLConnection urlConnection;
-
-            try {
-                *//* forming th java.net.URL object *//*
-                URL url = new URL(params[0]);
-
-                urlConnection = (HttpURLConnection) url.openConnection();
-
-                *//**//* for Get request *//**//*
-                urlConnection.setRequestMethod("GET");
-
-                int statusCode = urlConnection.getResponseCode();
-
-                *//**//* 200 represents HTTP OK *//**//*
-                if (statusCode ==  200) { Log.i (TAG, "200");
-                    inputStream = urlConnection.getInputStream();
-                    BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = r.readLine()) != null) {
-                        response.append(line);
-                    }
-
-                    parseResult(response.toString());
-                    result = 1; // Successful
-                }else{
-                    result = 0; //"Failed to fetch data!";
-                }
-
-            } catch (Exception e) {
-                Log.d(TAG, e.getLocalizedMessage());
-            }
-            finally {
-                inputStream = null; urlConnection = null;
-            }
-
-            return result; //"Failed to fetch data!";
+        protected void onPostExecute(List<Result> results) {
+            feedItemList.clear(); adapter.notifyDataSetChanged();
+            feedItemList.addAll(results);
+            adapter.notifyItemRangeInserted(adapter.getItemCount(), results.size());
         }
-
-        @Override
-        protected void onPostExecute(Integer result) {
-
-//            setProgressBarIndeterminateVisibility(false);
-            //Log.i (TAG, result.toString());
-            *//* Download complete. Lets update UI *//*
-            if (result == 1) {
-                adapter.notifyItemRangeInserted(adapter.getItemCount(), 20);
-                Log.i(TAG, "Yay");
-            } else {
-                Log.e(TAG, "Failed to fetch data!");
-            }
-        }
-    }*/
+    }
 }

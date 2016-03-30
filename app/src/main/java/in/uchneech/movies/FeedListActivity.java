@@ -2,14 +2,17 @@ package in.uchneech.movies;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -27,15 +30,19 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
     // Instance fields
     Account mAccount;
     private boolean movieSelected = false;
+    private Result result = null;
+    private Boolean existsInFav;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_list);
         Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
         // Create the dummy account
         mAccount = CreateSyncAccount(this);
+
         //Log.i(LOG_TAG, String.valueOf(getResources().getConfiguration().smallestScreenWidthDp));
         //Log.i (LOG_TAG, String.valueOf(getResources().getConfiguration().screenWidthDp));
     }
@@ -77,19 +84,35 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
         // Inflate the menu; this adds items to the action bar if it is present.
         return true;
     }
-
+    /*@Override
+    public boolean onPause (Bundle savedInstanceState)
+    {
+        super.onPause();
+        movieSelected = false;
+        return
+    }*/
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        if (menu.findItem(R.id.favourites)==null && movieSelected==true)
+        if (menu.findItem(R.id.favourites)==null && movieSelected)
         {
-            menu.add (Menu.NONE, R.id.favourites,Menu.NONE,"Add to favourites").setOnMenuItemClickListener(
-                    new MenuItem.OnMenuItemClickListener() {
-                        @Override
-                        public boolean onMenuItemClick(MenuItem item) {
-                            return false;
+            MenuItem item = menu.add(Menu.NONE, R.id.favourites, Menu.NONE, "Add to favourites");
+                    item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+            if (existsInFav)
+            {
+                item.setIcon (android.R.drawable.btn_star_big_on).setEnabled(false);
+            }
+            else
+            {
+                item.setOnMenuItemClickListener(
+                        new MenuItem.OnMenuItemClickListener() {
+                            @Override
+                            public boolean onMenuItemClick(MenuItem item) {
+                                new DBAsync().execute(result);
+                                return true;
+                            }
                         }
-                    }
-            ).setIcon(android.R.drawable.btn_star).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+                ).setIcon(android.R.drawable.btn_star);
+            }
 
         }
         return super.onPrepareOptionsMenu(menu);
@@ -106,18 +129,19 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
 
     @Override
     public void onListFragmentInteraction(Parcelable parcel) {
-        Log.i(LOG_TAG, String.valueOf(Parcels.unwrap(parcel)));
+//        Log.i(LOG_TAG, String.valueOf(Parcels.unwrap(parcel)));
+        movieSelected = true;
+        result = Parcels.unwrap(parcel);
+        new DBAsyncRead().execute(result);
         if (findViewById(R.id.frag_container) == null)
         {
-            movieSelected = true;
-            invalidateOptionsMenu();
             Intent intent = new Intent(this, DetailActivity.class);
+
             intent.putExtra("movieId", parcel);
             startActivity(intent);
         }
         else
         {
-            invalidateOptionsMenu();
             DetailsFragment displayFrag = (DetailsFragment) getSupportFragmentManager()
                     .findFragmentById(R.id.details_frag);
             displayFrag.updateContent (parcel);
@@ -130,4 +154,66 @@ public class FeedListActivity extends AppCompatActivity implements MoviesFragmen
     public void onFragmentInteraction(Uri uri) {
 
     }
+
+    class DBAsync extends AsyncTask<Result, Void, Void>
+    {
+
+        @Override
+        protected Void doInBackground(Result... params) {
+            // Gets the data repository in write mode
+            Result movie = params[0];
+            MovieOpenHelper movieOpenHelper = new MovieOpenHelper(getApplicationContext());
+            SQLiteDatabase db = movieOpenHelper.getWritableDatabase();
+            ContentValues values = new ContentValues();
+            values.put (MoviesContract.Movie._ID, movie.getId());
+            values.put (MoviesContract.Movie.COLUMN_NAME_overview, movie.getOverview());
+            values.put (MoviesContract.Movie.COLUMN_NAME_poster_path, movie.getPosterPath());
+            values.put (MoviesContract.Movie.COLUMN_NAME_release_date, movie.getReleaseDate());
+            values.put (MoviesContract.Movie.COLUMN_NAME_title, movie.getTitle());
+            values.put (MoviesContract.Movie.COLUMN_NAME_vote_average, movie.getVoteAverage());
+            // Insert the new row, returning the primary key value of the new row
+            db.insert(
+                    MoviesContract.Movie.TABLE_NAME,
+                    null,
+                    values);
+//            Log.i (LOG_TAG, String.valueOf(newRowId));
+            db.close();
+            return null;
+        }
+    }
+    class DBAsyncRead extends AsyncTask <Result, Void, Boolean>
+    {
+
+        @Override
+        protected Boolean doInBackground(Result... params) {
+            MovieOpenHelper movieOpenHelper = new MovieOpenHelper(getApplicationContext());
+            SQLiteDatabase db = movieOpenHelper.getReadableDatabase();
+            String [] arg = new String[1];
+            arg[0]= String.valueOf(params[0].id);
+            Cursor c = db.query(
+                    MoviesContract.Movie.TABLE_NAME,
+                    null,
+                    "id = ?",
+                    arg,
+                    null,
+                    null,
+                    null
+            );
+            int temp = c.getCount();
+            c.close(); db.close();
+            return temp > 0;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean existsInFavourites) {
+                existsInFav = existsInFavourites;
+            if (findViewById(R.id.frag_container) != null)
+            {
+                invalidateOptionsMenu();
+            }
+
+        }
+    }
+
+
 }

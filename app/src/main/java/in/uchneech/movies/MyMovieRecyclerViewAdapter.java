@@ -2,7 +2,6 @@ package in.uchneech.movies;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,9 +32,11 @@ public class MyMovieRecyclerViewAdapter extends RecyclerView.Adapter<FeedListRow
     public void onBindViewHolder(FeedListRowHolder feedListRowHolder, int i) {
         Result feedItem = feedItemList.get(i);
         //Log.i(LOG_TAG, String.valueOf(feedItem.getId()));
-        if (feedItem.getPosterPath()!= null ) {Log.i (LOG_TAG, feedItem.getTitle());}
-        Picasso.with(mContext).load("http://image.tmdb.org/t/p/w185"+feedItem.getPosterPath())
-                .into(feedListRowHolder.thumbnail);
+        if (feedItem.getPosterPath()!= null ) {
+//            Log.i (LOG_TAG, feedItem.getTitle());
+            Picasso.with(mContext).load("http://image.tmdb.org/t/p/w185" + feedItem.getPosterPath())
+                    .into(feedListRowHolder.thumbnail);
+        }
     }
 
     @Override

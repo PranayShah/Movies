@@ -9,5 +9,7 @@
             android:title="@string/votes_menu" />
         <item android:id="@+id/popularity"
             android:title="@string/popularity_menu" />
+        <item android:id="@+id/favouritesMenuItem"
+            android:title="@string/favourites"/>
             </group>
 </menu>
